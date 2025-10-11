@@ -1,47 +1,63 @@
-
 extends Camera3D
 
-# Member variables
-var collision_exception = []
-@export var min_distance = 0.5
-@export var max_distance = 3.0
-@export var angle_v_adjust = 0.0
-var max_height = 2.0
-var min_height = 0
-@onready var target_node: Node3D = get_parent()
+@export var min_distance := 0.5
+@export var max_distance := 3.0
+@export var follow_offset := Vector3(0, 0, 3)
+@export var follow_smooth := 8.0
+@export var rotation_smooth := 8.0
+@export var gravity_align_strength := 1.5   # radians/sec
+@export var collision_mask := 1
+@export var enable_gravity_align := false    # toggle on/off
 
+@onready var target: Node3D = get_parent()
 
-func _ready():
-	collision_exception.append(target_node.get_parent().get_rid())
-	# Detaches the camera transform from the parent spatial node
+var _velocity := Vector3.ZERO
+var _current_distance := 3.0
+
+func _ready() -> void:
 	set_as_top_level(true)
+	_current_distance = clamp(follow_offset.length(), min_distance, max_distance)
 
+func _physics_process(delta: float) -> void:
+	if not is_instance_valid(target):
+		return
 
-func _physics_process(_delta):
-	var target_pos: Vector3 = target_node.global_transform.origin
-	var camera_pos: Vector3 = global_transform.origin
+	# --- desired position relative to target ---
+	var target_basis := target.global_transform.basis
+	var target_origin := target.global_transform.origin
+	var desired_pos := target_origin + target_basis * Vector3(0, 0, _current_distance)
 
-	var delta_pos: Vector3 = camera_pos - target_pos
+	# --- optional collision avoidance ---
+	var space := get_world_3d().direct_space_state
+	var query := PhysicsRayQueryParameters3D.create(target_origin, desired_pos)
+	query.collision_mask = collision_mask
+	var result := space.intersect_ray(query)
+	if result:
+		desired_pos = result.position + (target_origin - result.position).normalized() * min_distance
 
-	# Regular delta follow
+	# --- smooth positional follow ---
+	global_position = global_position.lerp(desired_pos, follow_smooth * delta)
 
-	# Check ranges
-	if delta_pos.length() < min_distance:
-		delta_pos = delta_pos.normalized() * min_distance
-	elif delta_pos.length() > max_distance:
-		delta_pos = delta_pos.normalized() * max_distance
+	# --- base orientation (match target) ---
+	var target_quat := target_basis.get_rotation_quaternion()
 
-	# Check upper and lower height
-	if delta_pos.y > max_height:
-		delta_pos.y = max_height
-	if delta_pos.y < min_height:
-		delta_pos.y = min_height
+	# --- optional gravity realignment ---
+	if enable_gravity_align:
+		# Current up vector (world space)
+		var current_up := (Basis(global_transform.basis)).y
+		# Desired up (global up)
+		var desired_up := Vector3.UP
 
-	camera_pos = target_pos + delta_pos
+		# Axis between current and desired up
+		var axis := current_up.cross(desired_up)
+		var angle := acos(clamp(current_up.dot(desired_up), -1.0, 1.0))
 
-	look_at_from_position(camera_pos, target_pos, Vector3.UP)
+		if axis.length() > 0.0001 and angle > 0.0001:
+			var align_quat := Quaternion(axis.normalized(), angle * gravity_align_strength * delta)
+			target_quat = align_quat * target_quat
+			target_quat = target_quat.normalized()
 
-	# Turn a little up or down
-	var t = transform
-	t.basis = Basis(t.basis[0], deg_to_rad(angle_v_adjust)) * t.basis
-	transform = t
+	# --- smooth rotation toward target_quat ---
+	var current_quat := global_transform.basis.get_rotation_quaternion()
+	var new_quat := current_quat.slerp(target_quat, rotation_smooth * delta)
+	global_transform.basis = Basis(new_quat).orthonormalized()
