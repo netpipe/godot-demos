@@ -1,0 +1,4 @@
+res://level.tscn
+res://cubelib.tres
+res://player/cubio.tscn
+res://player/cubio.gd
