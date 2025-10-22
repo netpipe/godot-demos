@@ -7,6 +7,8 @@ extends CharacterBody3D
 @export var mouse_sensitivity: float = 0.003
 @export var roll_speed: float = 1.5  # radians/sec
 
+@onready var target: Node3D = get_parent()
+
 #var velocity: Vector3 = Vector3.ZERO
 var orientation: Quaternion = Quaternion.IDENTITY
 
@@ -15,20 +17,24 @@ func _ready() -> void:
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
-		var dx = -event.relative.x * mouse_sensitivity
-		var dy = -event.relative.y * mouse_sensitivity
+		var dx: float = -event.relative.x * mouse_sensitivity
+		var dy: float = -event.relative.y * mouse_sensitivity
 
-		# yaw (around global up) -> build Basis(axis, angle) then Quaternion
-		var q_yaw := Quaternion(Basis(Vector3.UP, dx))
+		# Get local camera axes from current orientation
+		var local_basis := Basis(orientation)
+		var local_up := local_basis.y      # camera’s current up vector
+		var local_right := local_basis.x   # camera’s right vector
 
-		# pitch (around the camera's current local right axis)
-		var local_basis := Basis(orientation)         # convert quaternion -> basis
-		var local_right := local_basis.x             # local X axis in world space
-		var q_pitch := Quaternion(Basis(local_right, dy))
+		# Yaw around camera’s local up
+		var q_yaw := Quaternion(local_up, dx)
 
-		# apply yaw then pitch to current orientation (order matters)
+		# Pitch around camera’s local right
+		var q_pitch := Quaternion(local_right, dy)
+
+		# Apply yaw then pitch
 		orientation = (q_yaw * q_pitch) * orientation
 		orientation = orientation.normalized()
+
 
 func _physics_process(delta: float) -> void:
 	# --- Roll (local forward axis) ---
@@ -39,10 +45,11 @@ func _physics_process(delta: float) -> void:
 		roll_input -= 1.0
 
 	if roll_input != 0.0:
-		var local_basis := Basis(orientation)
-		var local_forward := local_basis.z                   # forward in world-space
-		var q_roll := Quaternion(Basis(local_forward, roll_input * roll_speed * delta))
-		orientation = (orientation * q_roll).normalized()    # apply roll in local space
+		var forward := target.global_transform.basis.z
+		var roll_axis := (forward - Vector3.UP * forward.dot(Vector3.UP)).normalized()
+		var q_roll := Quaternion(roll_axis, -roll_input * roll_speed * delta)
+		orientation = (orientation * q_roll).normalized()
+
 
 	# --- Linear input (in local camera space) ---
 	var input_dir := Vector3.ZERO

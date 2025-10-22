@@ -32,7 +32,7 @@ shape = SubResource("CylinderShape3D_rg78b")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
 
 [node name="Camera3D" type="Camera3D" parent="Target"]
-transform = Transform3D(0.999638, -0.00920375, 0.0252871, -1.0193e-08, 0.939693, 0.34202, -0.02691, -0.341896, 0.939352, -0.149326, 0.5, 3.04476)
+transform = Transform3D(0.999516, -0.00807824, -0.0300386, 0.00869083, 0.999756, 0.020319, 0.0298671, -0.0205703, 0.999342, -0.0408375, -0.392412, -0.0300167)
 fov = 74.0
 near = 0.1
 far = 50.0
