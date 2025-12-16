@@ -1,7 +1,7 @@
 extends Camera3D
 
 @export var min_distance := 0
-@export var max_distance := 1.0
+@export var max_distance := 3.0
 @export var follow_offset := Vector3(0, 0, 3)
 @export var follow_smooth := 8.0
 @export var rotation_smooth := 8.0
@@ -32,11 +32,14 @@ func _physics_process(delta: float) -> void:
 	var query := PhysicsRayQueryParameters3D.create(target_origin, desired_pos)
 	query.collision_mask = collision_mask
 	var result := space.intersect_ray(query)
+	
 	if result:
-		desired_pos = result.position + (target_origin - result.position).normalized() * min_distance
-
+		#desired_pos = result.position + (target_origin - result.position).normalized() * min_distance
+		print ("test")
+		#global_position = global_position.lerp(desired_pos, follow_smooth * delta)
 	# --- Smooth positional follow ---
-	global_position = global_position.lerp(desired_pos, follow_smooth * delta)
+	else:
+		global_position = global_position.lerp(desired_pos, follow_smooth * delta)
 
 	# --- Base target orientation (follow target orientation fully) ---
 	var target_quat := target_basis.get_rotation_quaternion()
@@ -66,6 +69,6 @@ func _physics_process(delta: float) -> void:
 	var new_quat := current_quat.slerp(target_quat, rotation_smooth * delta)
 
 	global_transform.basis = Basis(new_quat).orthonormalized()
-
+	#global_position.lerp(desired_pos, follow_smooth * delta)
 func current_right() -> Vector3:
 	return Basis(global_transform.basis).x

@@ -72,6 +72,7 @@ func _physics_process(delta: float) -> void:
 
 	# Apply rotation: build a Basis from the quaternion and orthonormalize (prevents drift)
 	transform.basis = Basis(orientation).orthonormalized()
+	move_and_slide()
 	
 func _on_tcube_body_entered(body):
 	if body == self:
